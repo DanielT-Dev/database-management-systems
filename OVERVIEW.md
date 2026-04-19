@@ -7,6 +7,8 @@ Scopul acestei lucrări este analizarea performanței accesului la baza de date 
 
 De asemenea, se urmărește observarea comportamentului sistemului în cazul gestionării incorecte a conexiunilor (scurgeri de conexiuni).
 
+---
+
 ## 2. Tehnologii utilizate
 - Java 21/24
 - Hibernate ORM 6.x
@@ -14,55 +16,121 @@ De asemenea, se urmărește observarea comportamentului sistemului în cazul ges
 - HikariCP (connection pooling)
 - JDBC Driver PostgreSQL
 
+---
+
 ## 3. Sarcina A – Overhead-ul creării conexiunilor
 
 ### Metodologie
 S-a implementat un test care realizează 100 de conexiuni la baza de date în două moduri:
-1. Fără pooling (DriverManager – conexiune nouă la fiecare acces)
-2. Cu pooling (HikariCP – reutilizarea conexiunilor existente)
 
-Pentru ambele cazuri s-a măsurat:
-- timpul total de execuție
-- timpul mediu per conexiune
+#### 1. Fără pooling (DriverManager)
+```java
+Connection conn = DriverManager.getConnection(url, user, pass);
+```
+
+#### 2. Cu pooling (HikariCP)
+```java
+HikariConfig config = new HikariConfig();
+config.setJdbcUrl(url);
+config.setUsername(user);
+config.setPassword(pass);
+HikariDataSource ds = new HikariDataSource(config);
+
+Connection conn = ds.getConnection();
+```
+
+---
 
 ### Rezultate obținute
 
-Fără connection pooling:
+#### Fără connection pooling:
 - Timp total: 4435.82 ms
 - Timp mediu per conexiune: 44.36 ms
 
-Cu HikariCP:
+#### Cu HikariCP:
 - Timp total: 15.89 ms
 - Timp mediu per conexiune: 0.16 ms
 
-Comparatie:
-- Creștere de performanță: ~279x mai rapid cu pooling
+#### Comparație:
+- ~279x mai rapid cu pooling
+
+---
 
 ### Analiză
-Rezultatele arată că utilizarea connection pooling reduce semnificativ timpul de creare a conexiunilor. În varianta fără pooling, fiecare conexiune necesită inițializarea completă a comunicării cu baza de date, ceea ce implică cost ridicat.
+Fără pooling, fiecare conexiune necesită inițializarea completă a conexiunii TCP cu baza de date.
 
-În schimb, HikariCP reutilizează conexiunile deja create, reducând drastic timpul de răspuns.
+Cu HikariCP, conexiunile sunt reutilizate, reducând drastic timpul de răspuns.
+
+---
 
 ## 4. Sarcina B – Detectarea scurgerilor de conexiuni
 
-### Metodologie
-S-a implementat un scenariu în care pool-ul a fost configurat cu dimensiune mică (ex: 3 conexiuni), iar conexiunile au fost deschise fără a fi închise.
+### Cod problematic (leak)
 
-### Rezultate
-După câteva cereri consecutive, pool-ul a fost epuizat și a apărut eroarea:
+```java
+Connection conn = dataSource.getConnection();
+// NU se închide conexiunea
+```
+
+### Rezultat:
+- pool-ul se epuizează
+- apare eroarea:
+
+```
 Connection is not available, request timed out
+```
 
-### Remediere
-Problema a fost rezolvată prin utilizarea corectă a resurselor cu try-with-resources:
-- conexiunile sunt închise automat
-- pool-ul revine la normal
-- nu mai apar blocaje
+---
 
-## 5. Concluzii
-- Connection pooling îmbunătățește semnificativ performanța
-- HikariCP este eficient și rapid
-- gestionarea incorectă a conexiunilor duce la epuizarea resurselor
-- try-with-resources este esențial
+### Cod corect (fix)
 
-## 6. Observații finale
-Connection pooling este o optimizare critică pentru aplicațiile enterprise.
+```java
+try (Connection conn = dataSource.getConnection()) {
+    // utilizare conexiune
+}
+```
+
+---
+
+## 5. Comparație JDBC vs ORM
+
+### Înainte (JDBC)
+
+```java
+String sql = "SELECT * FROM employees WHERE department_id = ?";
+PreparedStatement stmt = conn.prepareStatement(sql);
+stmt.setInt(1, departmentId);
+ResultSet rs = stmt.executeQuery();
+```
+
+---
+
+### După (Hibernate / JPA)
+
+```java
+List<Employee> employees = entityManager
+        .createQuery(
+                "SELECT e FROM Employee e WHERE e.department.id = :deptId",
+                Employee.class)
+        .setParameter("deptId", departmentId)
+        .getResultList();
+```
+
+---
+
+## 6. Diferențe
+
+| Aspect | JDBC | ORM |
+|------|------|------|
+| SQL | manual | JPQL |
+| Mapare | manuală | automată |
+| Complexitate | mare | redusă |
+| Mentenanță | dificilă | ușoară |
+
+---
+
+## 7. Concluzii
+- Connection pooling reduce drastic timpul de acces la baza de date
+- HikariCP oferă performanță foarte ridicată
+- Gestionarea corectă a conexiunilor este esențială
+- ORM simplifică semnificativ dezvoltarea aplicațiilor

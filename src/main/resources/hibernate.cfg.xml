@@ -9,6 +9,8 @@
 <!--        <property name="hibernate.connection.password">postgres</property>-->
         <property name="hibernate.hbm2ddl.auto">update</property>
         <property name="hibernate.show_sql">true</property>
+        <property name="hibernate.format_sql">true</property>
+        <property name="hibernate.highlight_sql">true</property>
         <property name="hibernate.connection.provider_class">
             org.hibernate.hikaricp.internal.HikariCPConnectionProvider
         </property>
@@ -21,6 +23,8 @@
         <property name="hibernate.hikari.password">postgres</property>
 
         <property name="hibernate.hikari.maximumPoolSize">10</property>
+
+
 
     </session-factory>
 

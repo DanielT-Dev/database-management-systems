@@ -17,9 +17,8 @@ public class TransactionService {
     private final ItemDAO itemDAO = new ItemDAO();
 
     public List<Transaction> getAllTransactions() {
-        return transactionDAO.findAll();
+        return transactionDAO.findAllWithRelations();
     }
-
     public Transaction getById(int id) {
         return transactionDAO.findById(id);
     }

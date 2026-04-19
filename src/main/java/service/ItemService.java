@@ -14,7 +14,7 @@ public class ItemService {
     private final UserDAO userDAO = new UserDAO();
 
     public List<Item> getAllItems() {
-        return itemDAO.findAll();
+        return itemDAO.findAllWithSeller();
     }
 
     public Item getById(int id) {
@@ -65,4 +65,5 @@ public class ItemService {
 
         itemDAO.update(item);
     }
+
 }

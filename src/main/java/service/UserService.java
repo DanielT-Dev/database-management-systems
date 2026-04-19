@@ -10,9 +10,8 @@ public class UserService {
     private final UserDAO userDAO = new UserDAO();
 
     public List<User> getAllUsers() {
-        return userDAO.findAll();
+        return userDAO.findAllWithItems();
     }
-
     public User getById(int id) {
         return userDAO.findById(id);
     }
